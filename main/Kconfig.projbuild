@@ -1,0 +1,73 @@
+menu "ESP32C3 Zero Standby Sensor Configuration"
+	config ESP_WIFI_SSID
+			string "WiFi SSID"
+			default "myssid"
+			help
+					SSID (network name) for the example to connect to.
+
+	config ESP_WIFI_PASSWORD
+			string "WiFi Password"
+			default "mypassword"
+			help
+					WiFi password (WPA or WPA2) for the example to use.
+
+	config ESP_MAXIMUM_RETRY
+		int "Maximum retry"
+		default 5
+		help
+				Set the Maximum retry to avoid station reconnecting to the AP unlimited when the AP is really inexistent.
+					
+	choice ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD
+			prompt "WiFi Scan auth mode threshold"
+			default ESP_WIFI_AUTH_WPA2_PSK
+			help
+					The weakest authmode to accept in the scan mode.
+					This value defaults to ESP_WIFI_AUTH_WPA2_PSK in case password is present and ESP_WIFI_AUTH_OPEN is used.
+					Please select ESP_WIFI_AUTH_WEP/ESP_WIFI_AUTH_WPA_PSK in case AP is operating in WEP/WPA mode.
+
+			config ESP_WIFI_AUTH_OPEN
+					bool "OPEN"
+			config ESP_WIFI_AUTH_WEP
+					bool "WEP"
+			config ESP_WIFI_AUTH_WPA_PSK
+					bool "WPA PSK"
+			config ESP_WIFI_AUTH_WPA2_PSK
+					bool "WPA2 PSK"
+			config ESP_WIFI_AUTH_WPA_WPA2_PSK
+					bool "WPA/WPA2 PSK"
+			config ESP_WIFI_AUTH_WPA3_PSK
+					bool "WPA3 PSK"
+			config ESP_WIFI_AUTH_WPA2_WPA3_PSK
+					bool "WPA2/WPA3 PSK"
+			config ESP_WIFI_AUTH_WAPI_PSK
+					bool "WAPI PSK"
+	endchoice
+	
+	config BROKER_URL
+        string "Broker URL"
+        default "mqtt://mqtt.eclipseprojects.io"
+        help
+            URL of the broker to connect to
+
+	config ESPNOW_PMK
+			string "ESPNOW primary master key"
+			default "pmk1234567890123"
+			help
+					ESPNOW primary master for the example to use. The length of ESPNOW primary master must be 16 bytes.
+
+	config ESPNOW_LMK
+			string "ESPNOW local master key"
+			default "lmk1234567890123"
+			help
+					ESPNOW local master for the example to use. The length of ESPNOW local master must be 16 bytes.
+					The local master key is used to encrypt the data sent by the ESP32-C6.
+
+	config ESPNOW_CHANNEL
+			int "ESPNOW Channel"
+			default 1
+			range 0 14
+			help
+					The channel on which sending and receiving ESPNOW data.
+            
+endmenu
+
