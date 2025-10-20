@@ -1,4 +1,22 @@
-#include "espnow_transmitter.h"  // Include the header for this module
+/**
+ * @file espnow_sender.c
+ * @author  Mateusz Ressel (https://github.com/matt-ressel)
+ *
+ * @brief Implementation of the ESP-NOW sender module for the sensor node.
+ *
+ * This file contains the logic for initializing the ESP-NOW service, adding a
+ * peer, and performing synchronous, blocking sends. It uses a FreeRTOS binary
+ * semaphore to wait for the transmission acknowledgement, ensuring data is sent
+ * successfully before the system powers down.
+ *
+ * @version 0.1
+ * @date    2025-10-20
+ *
+ * @copyright Copyright (c) 2025 Mateusz Ressel. Licensed under the MIT License.
+ *
+ */
+
+#include "espnow_sender.h"  // Include the header for this module
 
 #include <string.h>  // For memcpy
 
@@ -13,7 +31,7 @@
 #include "freertos/semphr.h"    // For FreeRTOS semaphores
 
 // Logging tag for this module
-static const char* TAG = "ESPNOW_TRANSMITTER";
+static const char* TAG = "ESPNOW_SENDER";
 
 /** @brief Handle for the binary semaphore used to signal send completion. */
 static SemaphoreHandle_t s_send_sem = NULL;
@@ -22,18 +40,16 @@ static SemaphoreHandle_t s_send_sem = NULL;
 static esp_now_send_status_t s_send_status = ESP_NOW_SEND_FAIL;
 
 /**
- * @brief MAC address of the gateway/receiver device.
- * @warning Replace with your actual gateway MAC address.
- * It's highly recommended to configure this via Kconfig (menuconfig).
+ * @brief MAC address of the gateway/receiver, populated from Kconfig at compile-time.
  */
-static const uint8_t s_gateway_mac_addr[ESP_NOW_ETH_ALEN] = {GATEWAY_MAC_AS_BYTE_ARRAY};  // CHANGE THIS!
+static const uint8_t s_gateway_mac_addr[ESP_NOW_ETH_ALEN] = {GATEWAY_MAC_AS_BYTE_ARRAY};
 
 /**
  * @brief ESP-NOW send callback function (executed in Wi-Fi task context).
  *
  * This callback is invoked by the ESP-NOW stack after a packet transmission attempt.
  * It updates the global `s_send_status` variable and gives a semaphore to unblock
- * the `espnow_transmitter_send` function, which is waiting for this signal.
+ * the `espnow_send` function, which is waiting for this signal.
  *
  * @note This function runs in a high-priority Wi-Fi task context. Processing here
  *       must be minimal and non-blocking.
@@ -42,15 +58,16 @@ static const uint8_t s_gateway_mac_addr[ESP_NOW_ETH_ALEN] = {GATEWAY_MAC_AS_BYTE
  * @param status Status of the transmission (ESP_NOW_SEND_SUCCESS or ESP_NOW_SEND_FAIL).
  */
 static void espnow_send_cb(const wifi_tx_info_t* tx_info, esp_now_send_status_t status) {
+  (void)tx_info;  // Unused parameter
   s_send_status = status;
   if (s_send_sem != NULL) {
     xSemaphoreGive(s_send_sem);
   }
 }
 
-// Public API function implementations (documented in header)
-esp_err_t espnow_transmitter_init(void) {
-  ESP_LOGI(TAG, "Initializing ESP-NOW transmitter...");
+// Initializes the ESP-NOW sender module
+esp_err_t espnow_sender_init(void) {
+  ESP_LOGI(TAG, "Initializing ESP-NOW sender...");
 
   esp_err_t ret;  // Variable to store return codes from ESP-IDF functions
 
@@ -98,9 +115,14 @@ esp_err_t espnow_transmitter_init(void) {
   // Prepare the peer information structure for the gateway.
   esp_now_peer_info_t peer_info = {0};
   memcpy(peer_info.peer_addr, s_gateway_mac_addr, ESP_NOW_ETH_ALEN);
-  peer_info.channel = CONFIG_ESPNOW_CHANNEL;
-  peer_info.ifidx = ESP_IF_WIFI_STA;
-  peer_info.encrypt = true;
+
+  // Configure the peer settings
+  peer_info.channel = CONFIG_ESPNOW_CHANNEL;  // Use configured channel
+  peer_info.ifidx = ESP_IF_WIFI_STA;          // Use Station interface
+  peer_info.encrypt = true;                   // Enable encryption
+
+  // Set the Local Master Key (LMK) for this peer.
+  memcpy(peer_info.lmk, CONFIG_ESPNOW_LMK, ESP_NOW_KEY_LEN);
 
   // Add the gateway as a peer.
   ret = esp_now_add_peer(&peer_info);
@@ -116,13 +138,13 @@ esp_err_t espnow_transmitter_init(void) {
     return ret;
   }
 
-  ESP_LOGI(TAG, "ESP-NOW transmitter initialized successfully.");
+  ESP_LOGI(TAG, "ESP-NOW sender initialized successfully.");
   return ESP_OK;
 }
 
-// Public API function implementations (documented in header)
-esp_err_t espnow_transmitter_deinit(void) {
-  ESP_LOGI(TAG, "De-initializing ESP-NOW transmitter...");
+// De-initializes the ESP-NOW sender module
+esp_err_t espnow_sender_deinit(void) {
+  ESP_LOGI(TAG, "De-initializing ESP-NOW sender...");
   esp_now_unregister_send_cb();  // Unregister the send callback
   esp_now_deinit();              // De-initialize the ESP-NOW stack
 
@@ -134,8 +156,8 @@ esp_err_t espnow_transmitter_deinit(void) {
   return ESP_OK;
 }
 
-// Public API function implementations (documented in header)
-esp_err_t espnow_transmitter_send(const uint8_t* data, size_t len) {
+// Sends data via ESP-NOW and waits for confirmation
+esp_err_t espnow_sender_transmit(const uint8_t* data, size_t len) {
   if (data == NULL || len == 0) {
     ESP_LOGE(TAG, "Invalid arguments for send (data is NULL or len is 0)");
     return ESP_ERR_INVALID_ARG;

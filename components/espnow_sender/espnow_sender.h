@@ -1,18 +1,27 @@
 /**
- * @file espnow_transmitter.h
+ * @file espnow_sender.h
+ * @author  Mateusz Ressel (https://github.com/matt-ressel)
+ *
  * @brief Public interface for the ESP-NOW transmitter module.
  *
  * This module is designed for a battery-powered sensor node. It handles the
  * initialization of ESP-NOW, management of a single gateway peer, and the
  * synchronous, blocking transmission of data with status checking. The design
  * is optimized for minimal "on-time" by avoiding FreeRTOS tasks and queues.
+ *
+ * @version 0.1
+ * @date    2025-10-20
+ *
+ * @copyright Copyright (c) 2025 Mateusz Ressel. Licensed under the MIT License.
+ *
  */
 
-#ifndef ESPNOW_TRANSMITTER_H
-#define ESPNOW_TRANSMITTER_H
+#ifndef ESPNOW_SENDER_H
+#define ESPNOW_SENDER_H
 
-#include <stddef.h>   // For size_t
-#include <stdint.h>   // Standard integer types (e.g., uint8_t)
+#include <stddef.h>  // For size_t
+#include <stdint.h>  // Standard integer types (e.g., uint8_t)
+
 #include "esp_err.h"  // ESP-IDF error codes (esp_err_t)
 
 /**
@@ -41,7 +50,7 @@
  *   - ESP_ERR_NO_MEM: If memory allocation fails for the semaphore.
  *   - Other esp_err_t codes from ESP-IDF functions on failure.
  */
-esp_err_t espnow_transmitter_init(void);
+esp_err_t espnow_sender_init(void);
 
 /**
  * @brief De-initializes the ESP-NOW service.
@@ -55,25 +64,25 @@ esp_err_t espnow_transmitter_init(void);
  *   - ESP_OK: On success.
  *   - Other esp_err_t codes on failure.
  */
-esp_err_t espnow_transmitter_deinit(void);
+esp_err_t espnow_sender_deinit(void);
 
 /**
- * @brief Sends data to the pre-configured gateway peer and waits for confirmation.
+ * @brief Transmits data to the pre-configured gateway peer and waits for confirmation.
  *
- * This is a synchronous (blocking) function. It sends the provided data payload
+ * This is a synchronous (blocking) function. It transmits the provided data payload
  * via ESP-NOW and then waits for the send callback to fire, indicating whether
  * the transmission was successful (acknowledged by the peer) or failed.
  *
- * @param data Pointer to the buffer containing the data payload to send.
+ * @param data Pointer to the buffer containing the data payload to transmit.
  * @param len Length of the data payload in bytes.
  *
  * @return esp_err_t
- *   - ESP_OK: If the data was sent and successfully acknowledged by the peer.
+ *   - ESP_OK: If the data was transmitted and successfully acknowledged by the peer.
  *   - ESP_ERR_INVALID_ARG: If `data` is NULL or `len` is 0.
- *   - ESP_ERR_TIMEOUT: If the peer did not acknowledge the packet within `ESPNOW_SEND_TIMEOUT_MS`.
+ *   - ESP_ERR_TIMEOUT: If the peer did not acknowledge the packet within the timeout.
  *   - ESP_FAIL: If the send callback reported a failure.
  *   - Other esp_err_t codes from `esp_now_send` on failure.
  */
-esp_err_t espnow_transmitter_send(const uint8_t *data, size_t len);
+esp_err_t espnow_sender_transmit(const uint8_t* data, size_t len);
 
-#endif  // ESPNOW_TRANSMITTER_H
+#endif  // ESPNOW_SENDER_H
