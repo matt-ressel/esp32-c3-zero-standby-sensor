@@ -1,5 +1,7 @@
 /**
  * @file sensor_data.h
+ * @author Mateusz Ressel (https://github.com/matt-ressel)
+ *
  * @brief Defines the data structure for encapsulating sensor readings.
  *
  * This header file specifies the `sensor_data_t` structure, which is designed
@@ -9,8 +11,13 @@
  * For the air quality field, a specific convention (value of -1) is used
  * to indicate when a sensor node does not provide this particular reading.
  * This standardized structure is typically employed for data payloads transmitted
- * via ESP-NOW from sensor nodes to a gateway, and can then be relayed through
- * other communication interfaces like SPI.
+ * via ESP-NOW from sensor nodes to a gateway.
+ * 
+ * @version 0.1
+ * @date    2025-10-20
+ *
+ * @copyright Copyright (c) 2025 Mateusz Ressel. Licensed under the MIT License.
+ *
  */
 
 #ifndef SENSOR_DATA_H
