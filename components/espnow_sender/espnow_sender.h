@@ -1,6 +1,6 @@
 /**
  * @file espnow_sender.h
- * @author  Mateusz Ressel (https://github.com/matt-ressel)
+ * @author Mateusz Ressel (https://github.com/matt-ressel)
  *
  * @brief Public interface for the ESP-NOW transmitter module.
  *

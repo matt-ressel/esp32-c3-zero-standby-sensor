@@ -1,6 +1,6 @@
 /**
  * @file espnow_sender.c
- * @author  Mateusz Ressel (https://github.com/matt-ressel)
+ * @author Mateusz Ressel (https://github.com/matt-ressel)
  *
  * @brief Implementation of the ESP-NOW sender module for the sensor node.
  *
