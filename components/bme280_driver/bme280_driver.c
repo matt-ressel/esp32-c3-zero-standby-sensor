@@ -45,7 +45,7 @@
 #define BME280_REG_CTRL_MEAS 0xF4   // Measurement control register
 #define BME280_REG_DATA_START 0xF7  // Start of data registers (press, temp, hum)
 
-/** @brief Logging tag for this module. */
+// Logging tag for this module
 static const char* TAG = "BME280_DRIVER";
 
 static i2c_master_bus_handle_t s_i2c_bus_handle;
