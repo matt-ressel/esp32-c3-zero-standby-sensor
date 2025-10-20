@@ -26,6 +26,26 @@ menu "ESP32C3 Zero Standby Sensor Configuration"
 			range 0 14
 			help
 					The channel on which sending and receiving ESPNOW data.
+
+	config I2C_MASTER_SDA_PIN
+		int "I2C SDA Pin"
+		default 18
+		help
+			GPIO pin number for I2C SDA line.
+
+	config I2C_MASTER_SCL_PIN
+		int "I2C SCL Pin"
+		default 19
+		help
+			GPIO pin number for I2C SCL line.				
+
+	config I2C_MASTER_FREQUENCY
+		int "I2C Master Frequency"
+		default 100000
+		help
+			Frequency for I2C master clock.
+
+				
             
 endmenu
 
