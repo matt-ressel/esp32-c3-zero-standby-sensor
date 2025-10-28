@@ -1,23 +1,4 @@
-idf_component_register(SRCS "main.c" "network/espnow_transmitter.c" "network/wifi.c"
-                    INCLUDE_DIRS "." "include" "network")
+# CMakeLists.txt for main application
+# This file defines the main application component and its dependencies.
 
-
-
-
-# If a gateway MAC address is configured in Kconfig, process it and pass it to the compiler
-if(CONFIG_GATEWAY_MAC)
-    # 1. Get the MAC address string from Kconfig (CONFIG_GATEWAY_MAC)
-    # Example format: "AA:BB:CC:DD:EE:FF"
-    set(MAC_STRING "${CONFIG_GATEWAY_MAC}")
-
-    # 2. Replace all colons ":" with ",0x"
-    string(REPLACE ":" ",0x" MAC_AS_LIST "${MAC_STRING}")
-
-    # 3. Add "0x" at the beginning of the string
-    # Resulting format: "0xAA,0xBB,0xCC,0xDD,0xEE,0xFF"
-    set(MAC_AS_LIST "0x${MAC_AS_LIST}")
-
-    # 4. Pass the processed string as a macro definition to the C compiler
-    # The macro will have the form e.g. -DGATEWAY_MAC_AS_BYTE_ARRAY=0xAA,0xBB,0xCC,0xDD,0xEE,0xFF
-    target_compile_definitions(${COMPONENT_TARGET} PRIVATE "-DGATEWAY_MAC_AS_BYTE_ARRAY=${MAC_AS_LIST}")
-endif()
+idf_component_register( SRCS "main.c" INCLUDE_DIRS "." PRIV_REQUIRES battery_monitor bme280_driver espnow_sender nvs_flash power_manager sensor_manager wifi_service)
