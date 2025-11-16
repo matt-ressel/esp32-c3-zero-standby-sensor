@@ -10,8 +10,8 @@
  * main operational cycle by invoking the appropriate managers, and finally,
  * trigger the system power-down.
  *
- * @version 0.1
- * @date    2025-10-20
+ * @version 1.0
+ * @date    2025-11-09
  *
  * @copyright Copyright (c) 2025 Mateusz Ressel. Licensed under the MIT License.
  *
@@ -33,11 +33,6 @@
 
 /** @brief Logging tag specifically for messages originating from this main application file. */
 static const char* TAG_MAIN_APP = "MAIN_APP";
-
-/** @brief BME280 sensor readings structure.
- * This will hold the temperature, pressure, and humidity data read from the sensor.
- */
-bme280_data_t sensor_data;
 
 /**
  * @brief Main application entry point and orchestrator of the sensor's operational sequence.
@@ -83,6 +78,8 @@ bme280_data_t sensor_data;
  */
 
 void app_main(void) {
+  bme280_data_t sensor_data;  // Structure to hold BME280 measurement data
+
   ESP_LOGI(TAG_MAIN_APP, "--- ESP32-C3 Zero Standby Sensor: Cold Boot ---");
 
   // --- System Prerequisites Initialization ---
@@ -94,45 +91,42 @@ void app_main(void) {
     ret = nvs_flash_init();
   }
   ESP_ERROR_CHECK(ret);
-  // ESP_ERROR_CHECK(power_manager_init());    // GPIO for TPL5111 'DONE' signal
-  ESP_ERROR_CHECK(bme280_driver_init());  // I2C for BME280 sensor
-  // ESP_ERROR_CHECK(battery_monitor_init());  // GPIO for ADC enable and ADC itself
+
+  ESP_ERROR_CHECK_WITHOUT_ABORT(power_manager_init());    // Initialize power manager
+  ESP_ERROR_CHECK_WITHOUT_ABORT(bme280_driver_init());    // Initialize BME280 driver
+  ESP_ERROR_CHECK_WITHOUT_ABORT(battery_monitor_init());  // Initialize battery monitor
 
   // --- Phase 2: Optimized, Time-Sensitive Operations --
   ESP_LOGI(TAG_MAIN_APP, "Starting latency-hiding and time-critical measurements...");
   // Start the physical process of battery measurement (capacitor charging).
   // The ~25ms stabilization time will now pass in the background.
-  // ESP_ERROR_CHECK(battery_monitor_start_measurement());
+  ESP_ERROR_CHECK_WITHOUT_ABORT(battery_monitor_start_measurement());
 
   // Immediately perform the BME280 measurement to get the purest temperature reading
   ESP_LOGI(TAG_MAIN_APP, "Performing immediate BME280 measurement...");
-  ESP_ERROR_CHECK(bme280_driver_read_data(&sensor_data));
+  ESP_ERROR_CHECK_WITHOUT_ABORT(bme280_driver_read_data(&sensor_data));
 
   // --- Phase 3: Non-Critical Initializations ---
   ESP_LOGI(TAG_MAIN_APP, "Initializing network stack (hiding battery measurement latency)...");
-  ESP_ERROR_CHECK(wifi_service_init());
-  ESP_ERROR_CHECK(espnow_sender_init());
+  ESP_ERROR_CHECK_WITHOUT_ABORT(wifi_service_init());
+  ESP_ERROR_CHECK_WITHOUT_ABORT(espnow_sender_init());
 
   // --- Phase 4: Main Logic Execution ---
-  ESP_LOGI(TAG_MAIN_APP, "All initializations complete. Running the sensor manager...");
-  ESP_ERROR_CHECK(sensor_manager_run(&sensor_data));
+  // ESP_LOGI(TAG_MAIN_APP, "All initializations complete. Running the sensor manager...");
+  ESP_ERROR_CHECK_WITHOUT_ABORT(sensor_manager_run(&sensor_data));
 
   // --- Phase 5: System Shutdown ---
   ESP_LOGI(TAG_MAIN_APP, "Signaling shutdown...");
   // Signal the TPL5111 to cut power. This is the final action.
-  // power_manager_shutdown();
+  power_manager_shutdown();
 
   // --- Fail-safe: This code should be unreachable ---
   // If we are here, it means the primary shutdown signal to the TPL5111 failed.
   // As a last resort, we enter deep sleep to minimize power consumption.
   ESP_LOGE(TAG_MAIN_APP, "CRITICAL: Shutdown signal failed! Entering deep sleep as a fail-safe.");
+  // Disable all wake-up sources to ensure the device stays in deep sleep
+  esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
 
-  // Configure all power domains to be powered down during deep sleep
-  esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF);     // XTAL oscillator
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RC_FAST, ESP_PD_OPTION_OFF);  // Internal Fast oscillator
-  esp_sleep_pd_config(ESP_PD_DOMAIN_CPU, ESP_PD_OPTION_OFF);      // CPU core
-  esp_sleep_pd_config(ESP_PD_DOMAIN_VDDSDIO, ESP_PD_OPTION_OFF);  // VDDSDIO 
-  
   // We do not configure a wake-up timer. The external TPL5111 will perform a
   // hard power-cycle after its ~20 minute interval, which will restart the system.
   // This call puts the device into the lowest possible power state indefinitely.
