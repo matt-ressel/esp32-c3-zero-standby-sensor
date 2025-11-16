@@ -8,8 +8,8 @@
  * finalizes other measurements, assembles the complete data payload, and hands
  * it over to the network service for transmission.
  *
- * @version 0.1
- * @date    2025-10-20
+ * @version 0.2
+ * @date    2025-11-15
  *
  * @copyright Copyright (c) 2025 Mateusz Ressel. Licensed under the MIT License.
  *
@@ -41,25 +41,33 @@ esp_err_t sensor_manager_run(const bme280_data_t* sensor_data) {
 
   // 2. Process the pre-measured BME280 data passed as an argument
   if (sensor_data != NULL) {
-    ESP_LOGI(TAG, "Received BME280 data: T=%.2f C, P=%.2f hPa, H=%.2f %%",
-             sensor_data->temperature, sensor_data->pressure, sensor_data->humidity);
-    payload.temperature = sensor_data->temperature;
-    payload.pressure = sensor_data->pressure;
-    payload.humidity = sensor_data->humidity;
+    payload.temperature = (int16_t)(sensor_data->temperature / 10);   // DegC * 100 -> DegC * 10
+    payload.pressure = (uint16_t)(sensor_data->pressure / 256 / 10);  // Pa -> hPa * 10
+    payload.humidity = (uint8_t)(sensor_data->humidity / 1024);       // %RH * 1024 -> %RH
+    payload.air_quality = -1;                                         // Indicate no air quality data available
+    // ESP_LOGI(TAG, "Processed BME280 Data: T=%.1f °C, P=%.1f hPa, H=%u %%RH", payload.temperature / 10, payload.pressure / 10.0, payload.humidity);
+    ESP_LOGI(TAG, "Processed BME280 Data: T=%d.%d °C, P=%u.%u hPa, H=%u %%RH",
+             payload.temperature / 10, payload.temperature % 10,
+             payload.pressure / 10, payload.pressure % 10,
+             payload.humidity);
   } else {
     ESP_LOGE(TAG, "Invalid BME280 data pointer. Using fallback error values.");
     payload.temperature = -127.0f;
   }
 
+  uint16_t temp_battery_mv = 0;  // Temporary variable for battery voltage
+
   // 3. Finalize the battery measurement
   // This function is called after the ~25ms stabilization period has already
   // passed, hidden behind the Wi-Fi initialization in main.c.
-  // ret = battery_get_measurement(&payload.battery_voltage_mv);
-  // if (ret != ESP_OK) {
-  //   ESP_LOGE(TAG, "Failed to get battery measurement. Using fallback value.");
-  //   payload.battery_voltage_mv = 0;
-  // }
-  // ESP_LOGI(TAG, "Finalized Battery Read: V_Batt=%u mV", payload.battery_voltage_mv);
+  ret = battery_monitor_get_measurement(&temp_battery_mv);
+  payload.battery_mv = temp_battery_mv;  // Assign the measured battery voltage
+  // Log the battery voltage or an error if measurement failed
+  if (ret != ESP_OK) {
+    ESP_LOGW(TAG, "Failed to get battery measurement. Using fallback value.");
+    payload.battery_mv = 0;
+  }
+  ESP_LOGI(TAG, "Finalized Battery Read: V_Batt=%u mV", payload.battery_mv);
 
   // 4. Calculate CRC for the payload
   payload.crc = crc8((uint8_t*)&payload, sizeof(sensor_data_t) - 1);
