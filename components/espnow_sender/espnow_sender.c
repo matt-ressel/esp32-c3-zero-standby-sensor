@@ -9,8 +9,8 @@
  * semaphore to wait for the transmission acknowledgement, ensuring data is sent
  * successfully before the system powers down.
  *
- * @version 0.1
- * @date    2025-10-20
+ * @version 0.2
+ * @date    2025-11-15
  *
  * @copyright Copyright (c) 2025 Mateusz Ressel. Licensed under the MIT License.
  *
@@ -35,6 +35,9 @@ static const char* TAG = "ESPNOW_SENDER";
 
 /** @brief Handle for the binary semaphore used to signal send completion. */
 static SemaphoreHandle_t s_send_sem = NULL;
+
+/** @brief Flag indicating if the ESP-NOW sender has been initialized. */
+static bool s_is_initialized = false;
 
 /** @brief Variable to store the status of the last transmission attempt. */
 static esp_now_send_status_t s_send_status = ESP_NOW_SEND_FAIL;
@@ -138,6 +141,8 @@ esp_err_t espnow_sender_init(void) {
     return ret;
   }
 
+  // Mark the sender as initialized
+  s_is_initialized = true;
   ESP_LOGI(TAG, "ESP-NOW sender initialized successfully.");
   return ESP_OK;
 }
@@ -153,11 +158,22 @@ esp_err_t espnow_sender_deinit(void) {
     vSemaphoreDelete(s_send_sem);
     s_send_sem = NULL;
   }
+  
+  // Clear initialization flag
+  s_is_initialized = false;
+  ESP_LOGI(TAG, "ESP-NOW sender de-initialized.");
   return ESP_OK;
 }
 
 // Sends data via ESP-NOW and waits for confirmation
 esp_err_t espnow_sender_transmit(const uint8_t* data, size_t len) {
+  // Check if initialized
+  if (!s_is_initialized) {
+    ESP_LOGE(TAG, "Component not initialized, cannot perform operation.");
+    return ESP_ERR_INVALID_STATE;
+  }
+
+  // Validate input parameters
   if (data == NULL || len == 0) {
     ESP_LOGE(TAG, "Invalid arguments for send (data is NULL or len is 0)");
     return ESP_ERR_INVALID_ARG;
