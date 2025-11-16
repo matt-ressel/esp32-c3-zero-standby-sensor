@@ -9,8 +9,8 @@
  * as specified in the Bosch BME280 datasheet.
  * It uses the modern, handle-based ESP-IDF I2C master driver from 'driver/i2c_master.h'.
  *
- * @version 0.1
- * @date    2025-10-20
+ * @version 0.2
+ * @date    2025-11-15
  *
  * @copyright Copyright (c) 2025 Mateusz Ressel. Licensed under the MIT License.
  *
@@ -21,19 +21,17 @@
 // ESP-IDF includes
 #include "driver/i2c_master.h"
 #include "esp_log.h"
+// #include "esp_rom_sys.h"
 
 // FreeRTOS includes
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 // --- Hardware Specific Configuration ---
-#define I2C_MASTER_NUM I2C_NUM_0                       /*!< I2C port number for master dev */
-#define I2C_MASTER_SCL_PIN CONFIG_I2C_MASTER_SCL_PIN   /*!< GPIO number used for I2C master clock */
-#define I2C_MASTER_SDA_PIN CONFIG_I2C_MASTER_SDA_PIN   /*!< GPIO number used for I2C master data  */
-#define I2C_MASTER_FREQ_HZ CONFIG_I2C_MASTER_FREQUENCY /*!< I2C master clock frequency */
-#define I2C_MASTER_TX_BUF_DISABLE 0                    /*!< I2C master doesn't need buffer */
-#define I2C_MASTER_RX_BUF_DISABLE 0                    /*!< I2C master doesn't need buffer */
-#define I2C_TIMEOUT_MS 100
+#define I2C_MASTER_NUM I2C_NUM_0    /*!< I2C port number for master dev */
+#define I2C_MASTER_TX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_RX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */
+#define I2C_TIMEOUT_MS 100          /*!< I2C operation timeout in milliseconds */
 
 // --- BME280 Register Addresses (from datasheet, chapter 5) ---
 
@@ -48,8 +46,12 @@
 // Logging tag for this module
 static const char* TAG = "BME280_DRIVER";
 
+// --- Static Handles for I2C Communication ---
 static i2c_master_bus_handle_t s_i2c_bus_handle;
 static i2c_master_dev_handle_t s_bme280_dev_handle;
+
+/** @brief Flag indicating if the BME280 driver has been initialized. */
+static bool s_is_initialized = false;
 
 /**
  * @brief Structure to hold all factory calibration coefficients.
@@ -151,8 +153,8 @@ esp_err_t bme280_driver_init(void) {
   // 1. Configure I2C master interface
   i2c_master_bus_config_t i2c_bus_config = {
       .i2c_port = I2C_MASTER_NUM,
-      .sda_io_num = I2C_MASTER_SDA_PIN,
-      .scl_io_num = I2C_MASTER_SCL_PIN,
+      .sda_io_num = CONFIG_I2C_MASTER_SDA_PIN,
+      .scl_io_num = CONFIG_I2C_MASTER_SCL_PIN,
       .clk_source = I2C_CLK_SRC_DEFAULT,
       .glitch_ignore_cnt = 7,
       .flags.enable_internal_pullup = true,
@@ -168,7 +170,7 @@ esp_err_t bme280_driver_init(void) {
   i2c_device_config_t i2c_dev_config = {
       .dev_addr_length = I2C_ADDR_BIT_LEN_7,
       .device_address = BME280_SENSOR_ADDR,
-      .scl_speed_hz = I2C_MASTER_FREQ_HZ,
+      .scl_speed_hz = CONFIG_I2C_MASTER_FREQUENCY,  // Use configured frequency
   };
   ret = i2c_master_bus_add_device(s_i2c_bus_handle, &i2c_dev_config, &s_bme280_dev_handle);
   if (ret != ESP_OK) {
@@ -226,6 +228,8 @@ esp_err_t bme280_driver_init(void) {
   ret = bme280_i2c_write_reg(BME280_REG_CTRL_MEAS, ctrl_meas_val);
   if (ret != ESP_OK) return ret;
 
+  // 6. Mark the driver as initialized
+  s_is_initialized = true;
   ESP_LOGI(TAG, "BME280 driver initialized successfully.");
   return ESP_OK;
 }
@@ -240,11 +244,21 @@ esp_err_t bme280_driver_deinit(void) {
     i2c_del_master_bus(s_i2c_bus_handle);
     s_i2c_bus_handle = NULL;
   }
+
+  // Clear initialization flag
+  s_is_initialized = false;
+  ESP_LOGI(TAG, "BME280 driver de-initialized.");
   return ESP_OK;
 }
 
 // Performs a single measurement of all values and returns the compensated results.
 esp_err_t bme280_driver_read_data(bme280_data_t* data) {
+  // Check if initialized
+  if (!s_is_initialized) {
+    ESP_LOGE(TAG, "Component not initialized, cannot perform operation.");
+    return ESP_ERR_INVALID_STATE;
+  }
+
   if (data == NULL) return ESP_ERR_INVALID_ARG;
   esp_err_t ret;
 
@@ -255,7 +269,8 @@ esp_err_t bme280_driver_read_data(bme280_data_t* data) {
   if (ret != ESP_OK) return ret;
 
   // 2. Wait for the measurement to complete. Datasheet suggests ~8ms for TPH x1.
-  vTaskDelay(pdMS_TO_TICKS(20));
+  // esp_rom_delay_us(10000);   // 10 ms delay to ensure measurement completion
+  vTaskDelay(pdMS_TO_TICKS(10));  // 10 ms delay to ensure measurement completion
 
   // 3. Read all 8 data registers (Pressure, Temp, Humidity) in a single burst read
   uint8_t data_buffer[8];
@@ -272,10 +287,15 @@ esp_err_t bme280_driver_read_data(bme280_data_t* data) {
   uint32_t press_int = compensate_pressure(adc_P);
   uint32_t hum_int = compensate_humidity(adc_H);
 
-  data->temperature = (float)temp_int / 100.0f;
-  data->pressure = (float)press_int / 256.0f / 100.0f;  // Pa -> hPa
-  data->humidity = (float)hum_int / 1024.0f;            // %RH
+  data->temperature = temp_int;  // in °C * 100
+  data->pressure = press_int;    // in Pa
+  data->humidity = hum_int;      // in %RH * 1024
 
-  ESP_LOGI(TAG, "Read successful: T=%.2f C, P=%.2f hPa, H=%.2f %%", data->temperature, data->pressure, data->humidity);
+  // data->temperature = (float)temp_int / 100.0f;
+  // data->pressure = (float)press_int / 256.0f / 100.0f;  // Pa -> hPa
+  // data->humidity = (float)hum_int / 1024.0f;            // %RH
+
+  // ESP_LOGI(TAG, "Read successful: T=%.2f C, P=%.2f hPa, H=%.2f %%", data->temperature, data->pressure, data->humidity);
+  ESP_LOGI(TAG, "Read successful: T_raw=%ld, P_raw=%lu, H_raw=%lu", temp_int, press_int, hum_int);
   return ESP_OK;
 }
