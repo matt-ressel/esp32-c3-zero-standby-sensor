@@ -112,7 +112,7 @@ void app_main(void) {
   ESP_ERROR_CHECK_WITHOUT_ABORT(espnow_sender_init());
 
   // --- Phase 4: Main Logic Execution ---
-  // ESP_LOGI(TAG_MAIN_APP, "All initializations complete. Running the sensor manager...");
+  ESP_LOGI(TAG_MAIN_APP, "All initializations complete. Running the sensor manager...");
   ESP_ERROR_CHECK_WITHOUT_ABORT(sensor_manager_run(&sensor_data));
 
   // --- Phase 5: System Shutdown ---
