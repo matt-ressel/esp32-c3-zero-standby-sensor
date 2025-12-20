@@ -18,7 +18,6 @@ menu "ESP32C3 Zero Standby Sensor Configuration"
 			default "lmk1234567890123"
 			help
 					ESPNOW local master for the example to use. The length of ESPNOW local master must be 16 bytes.
-					The local master key is used to encrypt the data sent by the ESP32-C6.
 
 	config ESPNOW_CHANNEL
 			int "ESPNOW Channel"
