@@ -288,7 +288,7 @@ esp_err_t bme280_driver_read_data(bme280_data_t* data) {
   uint32_t hum_int = compensate_humidity(adc_H);
 
   data->temperature = temp_int;  // in °C * 100
-  data->pressure = press_int;    // in Pa
+  data->pressure = press_int;    // // in Pa * 256 (Q24.8 format)
   data->humidity = hum_int;      // in %RH * 1024
 
   // data->temperature = (float)temp_int / 100.0f;
