@@ -19,10 +19,10 @@
 
 // ESP-IDF includes
 #include "esp_err.h"    // For ESP_OK and other error codes
-#include "esp_event.h"  // For esp_event_loop_create_default (was missing)
+#include "esp_event.h"  // For esp_event_loop_create_default
 #include "esp_log.h"    // For ESP-IDF logging utilities
 #include "esp_mac.h"    // For MAC address functions and macros (MACSTR, MAC2STR)
-#include "esp_netif.h"  // For esp_netif_init (was missing)
+#include "esp_netif.h"  // For esp_netif_init
 #include "esp_wifi.h"   // For core WiFi functionality and definitions
 
 // Logging tag for this module
@@ -113,17 +113,17 @@ esp_err_t wifi_service_init(void) {
   }
 
   // Retrieve and log the MAC address of the configured WiFi interface (STA or AP).
-  uint8_t my_mac_addr[6] = {0};  // Local variable to store MAC address
-  ESP_LOGI(TAG_WIFI, "Retrieving MAC address for interface %s...", (ESPNOW_WIFI_IF == WIFI_IF_STA) ? "STA" : "AP");
-  ret = esp_wifi_get_mac(ESPNOW_WIFI_IF, my_mac_addr);
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG_WIFI, "Failed to get MAC address: %s (0x%X)", esp_err_to_name(ret), ret);
-    return ret;  // MAC address is often crucial, so treat as an error if it fails
-  }
-  ESP_LOGI(TAG_WIFI, "Device MAC Address (" MACSTR ") retrieved successfully for ESP-NOW operations.", MAC2STR(my_mac_addr));
+  // uint8_t my_mac_addr[6] = {0};  // Local variable to store MAC address
+  // ESP_LOGI(TAG_WIFI, "Retrieving MAC address for interface %s...", (ESPNOW_WIFI_IF == WIFI_IF_STA) ? "STA" : "AP");
+  // ret = esp_wifi_get_mac(ESPNOW_WIFI_IF, my_mac_addr);
+  // if (ret != ESP_OK) {
+  //   ESP_LOGE(TAG_WIFI, "Failed to get MAC address: %s (0x%X)", esp_err_to_name(ret), ret);
+  //   return ret;  // MAC address is often crucial, so treat as an error if it fails
+  // }
+  // ESP_LOGI(TAG_WIFI, "Device MAC Address (" MACSTR ") retrieved successfully for ESP-NOW operations.", MAC2STR(my_mac_addr));
 
-  ESP_LOGI(TAG_WIFI, "WiFi initialization for ESP-NOW complete. Channel: %d, Mode: %s.",
-           CONFIG_ESPNOW_CHANNEL, (ESPNOW_WIFI_MODE == WIFI_MODE_STA) ? "Station" : "AP");
+  // ESP_LOGI(TAG_WIFI, "WiFi initialization for ESP-NOW complete. Channel: %d, Mode: %s.",
+  //          CONFIG_ESPNOW_CHANNEL, (ESPNOW_WIFI_MODE == WIFI_MODE_STA) ? "Station" : "AP");
 
   return ESP_OK;  // All initialization steps successful
 }
