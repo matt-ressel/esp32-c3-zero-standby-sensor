@@ -41,11 +41,10 @@ esp_err_t sensor_manager_run(const bme280_data_t* sensor_data) {
 
   // 2. Process the pre-measured BME280 data passed as an argument
   if (sensor_data != NULL) {
-    payload.temperature = (int16_t)(sensor_data->temperature / 10);   // DegC * 100 -> DegC * 10
+    payload.temperature = (int16_t)(sensor_data->temperature);        // DegC * 100
     payload.pressure = (uint16_t)(sensor_data->pressure / 256 / 10);  // Pa -> hPa * 10
     payload.humidity = (uint8_t)(sensor_data->humidity / 1024);       // %RH * 1024 -> %RH
     payload.air_quality = -1;                                         // Indicate no air quality data available
-    // ESP_LOGI(TAG, "Processed BME280 Data: T=%.1f °C, P=%.1f hPa, H=%u %%RH", payload.temperature / 10, payload.pressure / 10.0, payload.humidity);
     ESP_LOGI(TAG, "Processed BME280 Data: T=%d.%d °C, P=%u.%u hPa, H=%u %%RH",
              payload.temperature / 10, payload.temperature % 10,
              payload.pressure / 10, payload.pressure % 10,
