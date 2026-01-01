@@ -18,7 +18,7 @@ This project achieves this goal through a unique **"Zero Standby"** architecture
 
     This successfully achieves the design goal of making the electronic footprint in the standby state almost immeasurable. It ensures that the theoretical battery life is maximized, being limited almost exclusively by the energy consumed during the brief active cycles.
 *   **Power Gating Architecture:** Instead of using Deep Sleep mode, the TPL5111 completely enables and disables the power supply for the entire system (MCU + sensor), eliminating any MCU-related leakage currents.
-*   **Ultra-Fast On-Time:** The entire active cycle (boot, measure, transmit, shutdown) is highly optimized to complete in **well under 100 milliseconds**, which is critical for minimizing energy consumption.
+*   **Ultra-Fast On-Time:** The entire active cycle (boot, measure, transmit, shutdown) is highly optimized to complete in **well under 100 milliseconds** (typically ~80ms), which is critical for minimizing energy consumption.
 *   **Optimized Operational Sequence:** The firmware uses advanced techniques like **latency hiding**, where long physical processes (like battery measurement stabilization) are executed in the background during other necessary initializations (like the Wi-Fi stack), effectively reducing their time cost to zero.
 *   **ESP-NOW Communication:** Utilizes the lightweight and fast ESP-NOW protocol, configured for Long Range (LR) mode, for robust and low-power data transmission.
 *   **Professional Component-Based Architecture:** The code is structured into fully independent, reusable components (e.g., `bme280_driver`, `espnow_sender`, `sensor_manager`) in line with the best practices for ESP-IDF, ensuring clean separation of concerns and easy maintenance.
@@ -104,6 +104,9 @@ For maximum performance, both the main application and the bootloader should be 
     *   `Bootloader config ---> Bootloader optimization level ---> Optimize for performance (-O2)`
 
 #### Bootloader & Logging & System
+*   **Disable Console Output (CRITICAL):** Disables the UART console driver entirely. This removes the initialization overhead of the UART peripheral and converts all logging macros to no-ops, significantly speeding up boot and execution.
+    *   `Component config ---> ESP System Settings ---> Channel for console output (None)`
+
 *   **Skip Image Validation:** This is a major optimization. It instructs the bootloader to skip the time-consuming SHA-256 validation of the application image on every boot.
     *   `Bootloader config ---> [*] Skip image validation always`
 
@@ -165,3 +168,21 @@ espefuse.py --port YOUR_PORT burn_efuse UART_PRINT_CONTROL 3
 espefuse.py --port YOUR_PORT burn_efuse DIS_USB_SERIAL_JTAG_ROM_PRINT 1    
 
 ```
+
+## 📉 Real-World Performance Verification
+
+The theoretical optimizations have been verified using a **Nordic Power Profiler Kit II (PPK2)**. The chart below captures a single, complete active cycle — from cold boot, through sensor reading and Wi-Fi initialization, to ESP-NOW transmission and final power-off.
+
+![PPK2 Power Profile](img/ppk2_cycle_profile.png)
+*(Fig. 1: Complete active cycle profile captured with PPK2 @ 3.6V)*
+
+### Measured Metrics (per cycle):
+
+| Metric | Measured Value | Significance |
+| :--- | :--- | :--- |
+| **Total On-Time** | **~80 ms** | Surpasses the goal of < 100ms. Minimizes the time the battery is under load. |
+| **Total Charge** | **~3.05 mC** | Extremely low energy cost per transmission. **1 mC ≈ 0.278 µAh**, so one cycle costs just **~0.85 µAh**. |
+| **Average Current** | **~38 mA** | Efficient operation during the active phase. |
+| **Peak Current** | **~430 mA** | Represents the short Wi-Fi TX burst. Handled by input capacitors to protect the high-impedance battery. |
+
+**Conclusion:** With a total charge of **3.05 mC** per cycle and a 10-minute interval, the average current consumption of the electronics is approximately **0.25 µA** (plus the ~200nA quiescent current). This confirms that the system's battery life is strictly limited by the battery's self-discharge rate, not the device's power consumption.
